@@ -1,0 +1,11 @@
+name: "JUMP Software Suite Manual"
+output_dir: 'docs'
+output:
+  html_document:
+    css: styles.css
+    theme: cerulean
+    highlight: zenburn
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false

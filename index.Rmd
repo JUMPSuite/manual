@@ -1,0 +1,790 @@
+---
+title: "JUMP Software Suite manual"
+output: 
+  html_document:
+    toc: TRUE
+    css: styles.css
+---
+
+# 1. Introduction
+JUMP is an ongoing large software suite developed for the need of mass spectrometry (MS)-base proteomics, metabolomics, and the integration with genomics for network analysis at the level of systems biology. Currently, the software primarily contains JUMPp [[1](#ref)] (still termed JUMP historically that will be renamed later), JUMPm [[2](#ref)], JUMPg [[3](#ref)], and JUMPn [[4](#ref)] for computational data processing in proteomics, metabolomics, proteogenomics, and network analysis, respectively. In addition, some other programs have been under development, such as JUMPt for protein turnover analysis.
+
+<center>
+![](1_1.png){width=50%}
+</center>
+</br>
+
+JUMPp is a proteomics software integrating protein database creation, database search for spectrum-peptide matches (PSM), PSM filtering, protein posttranslational modification (PTM) site localization, and protein quantification [[1](#ref)]. The software starts with a raw file and ends with a list of quantified protein. It can identify multiple candidate peptides from mixture spectra and producing de novo sequence tags. It generates a Jscore for each PSM that merges the local tag score and the global pattern matching score. JUMPp is a tag-based hybrid database search method for peptide identification and outperforms than other search engines such as SEQUEST [[5](#ref)], Mascot [[6](#ref)], InsPecT [[7](#ref)], and PEAKS DB [[8](#ref)]. Currently, JUMPp has five main components: database creation, database search, PSM filtering, PTM site localization, and protein quantification by tandem mass tag (TMT).
+
+<center>
+![](1_2.png){width=50%}
+</center>
+</br>
+
+
+## 1.1. JUMP database creation
+JUMP database creation (JUMPp -d) is a tool designed to build a database for JUMP search and a corresponding protein inference table (PIT) which is necessary for the protein grouping when running jump filtering. It requires a parameter file, jump_d.params, in which some parameters for the database generation and a jump search parameter file (e.g. jump.params) should be specified.
+
+<center>
+![](1.1.png){width=50%}
+</center>
+</br>
+
+
+## 1.2 JUMP search
+JUMP search (JUMPp -s) is a hybrid database search algorithm that combines database search and de novo sequencing for peptide identification. Unlike other existing search algorithms, JUMPp -s generates amino acid tags and ranks peptide spectrum matches by tags and pattern matching, which can use all potential sequence tags, as short as only one amino acid. JUMP-derived tags facilitate the unambiguous assignment of modified residues. JUMPp -s provides additional features, including identification of co-eluted peptides from mixture MS/MS spectra, and assignment of modification sites by tags.
+
+<center>
+![](1.2.png){width=50%}
+</center>
+</br>
+
+
+## 1.3 JUMP filtering
+JUMP filtering (JUMPp -f) is a computational tool to analyze database search results for confidently identifying peptides and proteins [[9, 10](#ref)]. It summarizes the search results from all fractions, and filters PSMs (peptide-spectrum matches) to achieve user-specified level of false discovery rate (FDR) based on the target-decoy method. JUMP –f includes some useful features such as optimization for identifying peptides with PTMs (post-translational modifications, e.g., phosphorylation), auto-calibration and filtering of mass shift, and provides html-based visualization website to facilitate result interpretation. The overall workflow is shown below.
+
+<center>
+![](1.3.png){width=50%}
+</center>
+</br>
+
+
+## 1.4 JUMP localization
+To evaluate the confidence of phosphosites in peptides, we used the concept of the phosphoRS algorithm to calculate phosphosite localization scores (Lscore, 0- 100%) in each PSM [[11](#ref)]. In addition to the PSM Lscores, all phosphosites are aligned to protein sequences to generate protein Lscores. If multiple PSMs are identified for one specific phosphosite, the highest PSM Lscore is used as the protein Lscore. As random assignment in PSMs containing ambiguous phosphosites often leads to excessively large number of protein phosphosites in proteins, we implemented several rules to alleviate this problem (please see the reference for details).
+
+<center>
+![](1.4.png){width=50%}
+</center>
+</br>
+
+
+## 1.5 JUMP quantification
+JUMP quantification (JUMPp -q) performs quantification for Tandem Mass Tag (TMT) tagging experiments [[12](#ref)]. The program utilizes relative intensity of reporter ions to determine the relative quantification for each sample. The program also performs summarization and differential analysis between groups of samples.
+
+<center>
+![](1.5.png){width=35%}
+</center>
+</br>
+
+
+## 1.6 JUMP search by Comet
+Comet is an open source, high-speed database search engine [[13](#ref)] developed by Jimmy Eng, the author of SEQUEST (the first sequence database search tool that has been widely used). For more information, please see http://comet-ms.sourceforge.net/. In JUMP Software Suite, the database search through Comet is implemented and the result is compatible with a subsequent processing, i.e. JUMP filtering.
+
+Here is the summary of three search engines.
+
+|    |Comet   |JUMP    |SEQUEST|
+|----|--------|--------|-------|
+|Reference|[13]|[1]|[5]|
+|Algorithm|A database search tool with a fast cross-correlation algorithm to scores PSMs|A tag-based database search tool for peptide identification |A database search tool with cross-correlation function to score PSMs|
+|Pros|Open source, fast via multithreading, no database indexing, and flexible to set PTMs|Optimized for TMThh data, strong preprocessing, entire pipeline, and easy to incorporate other tools|Suitable to search HL data|
+|Cons|Weak preprocessing, up to 9 variable PTMs supported, and complicated to incorporate into JUMP pipeline|Not optimized for non-TMT and HL data, PTMs limited to TMT, Phospho, C57 and M16|Slow, Need to build database indexes to incorporate more PTMs|
+
+We did the benchmark test for Comet, JUMP, and SEQUEST on HL (10174 MS2 scans) and TMThh (64519 MS2 scans) data using the default params via jump -params. (The data can be found in `/hpcf/authorized_apps/proteomics_apps/pipeline/release/SampleData`)
+
+Search time is the sum of preprocessing and database searching time.
+
+|Search time (min) |Comet   |JUMP    |SEQUEST|
+|-------|--------|--------|-------|
+|HL|9|26|55|
+|TMThh|32|51|66|
+|#cores for search|4|500|500|
+
+jump -s uses databases made in 2015, and jump -f is done at protein level.
+
+|#PSMs|Comet   |JUMP    |SEQUEST|
+|-------|--------|--------|-------|
+|HL|4581|1552|5110|
+|TMThh|13337|13742|11626|
+
+\#PSMs is from the accepted PSMs in the pepXML file.
+</br>
+
+
+## 1.7 JUMP batch
+The JUMP batch program is designed for analyzing multi-batch TMT datasets for sensitive identification and accurate quantification of peptides and proteins. There are two major challenges in multi-batch TMT analysis: i) a significant portion of proteins (peptides) are identified only in a specific batch (i.e. batch-specific IDs); and ii) protein (peptide) quantities in multi-batch TMT datasets generally show a batch-effect, systematic non-biological variation between batches. These two problems are addressed by the JUMP -batch-ID and JUMP -batch-quan, respectively, with outline below:
+
+<center>
+![](1.7.png){width=100%}
+</center>
+</br>
+
+
+## 1.8 License
+The current version of JUMP is optimized for the analysis of high-resolution MS/MS spectra and is written in Perl and R. The suite can be run on both high-performance parallel computing systems and a standalone machine. The source code of JUMP can be downloaded from our website (https://www.stjuderesearch.org/site/lab/peng) and Github site (https://github.com/JUMPSuite/JUMP) and used according to the terms of the GNU General Public License (GPL).
+</br>
+</br>
+
+
+# 2. How to run JUMP software suite
+## 2.1 Installing Putty and WinSCP
+To run the JUMP system, you need to download two free software programs: WinSCP and PuTTY. WinSCP is an open source free SFTP client and FTP client for Windows. Its main function is the secure file transfer between Windows and Linux machine. PuTTY is a free implementation of Telnet and SSH for Windows and Unix platforms. It is used to open terminals for command line applications. To download the program WinSCP, go to the website (http://winscp.net/download/winscp571.zip) and click [Direct download] or [Alternative download]. After the download is finished you should find a zipped file folder (winscp571.zip) in your download folder of your computer. To download the program PuTTY, go to the website (http://winscp.net/download/putty.exe) and click [Direct download] or [Alternative download]. After the download is finished you should find a execute file (`putty.exe`) in your download folder of your computer.
+
+
+## 2.2 Server login
+In order to run the JUMP system, you also need to login the server (e.g. spiderscluster, labcluster, or `hpc.stjude.org` if using Institutional HPC), to do that you need to contact our system administrator to create a user account for you. With the server account, you can log in the Linux/Unix system. To work on the Linux/Unix, you might need to know a few Linux/Unix commands. To understand how to use the Linux/Unix commands, you can visit the website (http://en.wikipedia.org/wiki/List_of_Unix_commands) for details.
+
+
+### 2.2.1 Login a server by WinSCP
+To login the server with WinSCP, double click the file of `WinSCP.exe`, a WinSCP login window will appear on your screen.
+
+<center>
+![](2.2.1_1.png)
+</center>
+</br>
+
+In this window, type the host name (e.g. `spiderscluster.stjude.org`), put your user name and password for the host in the appropriate blanks and click login. After clicking login, a warning window might appear on your screen.
+ 
+<center>
+![](2.2.1_2.png)
+</center>
+</br>
+
+Click Yes to continue.
+After clicking Yes, a WinSCP window will appear on your screen. The left panel shows a file system of your desktop computer like Windows Explorer and the right panel shows a file system of the host (default location is your home directory). On the right panel, you can create a directory in the host by right clicking of your mouse &rightarrow; New &rightarrow; Directory (for example, test1). The new directory will appear under your working directory as below.
+
+<center>
+![](2.2.1_3.png)
+</center>
+</br>
+ 
+To upload some files from your desktop computer to your (new) directory in the host, (1) choose file(s) on the left panel (2) right click &rightarrow; Upload &rightarrow; OK, then file(s) will be transferred. Suppose you transferred a .raw file and some .params files as below. Those files appear on the right panel, which means they are in the host.
+ 
+<center>
+![](2.2.1_4.png)
+</center>
+</br>
+
+The parameter file defines all the parameters that you are going to use to run the JUMP system. It also contains the information of the location of input file(s) such as database files, mzXML files and so on as well as result/output files in your file management system. Each of parameter files has its own unique function in JUMP system.
+
+`jump_d.params` is for creating the database file
+`jump_sj_<optional name>.params` is for searching
+`jump_fj_<optional name>.params` is for filtering
+`jump_qj_<optional name>.params` is for quantification. 
+After you have done this, you are ready to download PuTTy program so that you can use JUMP for the tasks of searching, filtering, PTM localization and quantification. Please note, to implement each of these tasks you need to change the parameters in the parameter file according to your own needs.
+
+
+### 2.2.2 Login a server by Putty
+To login the server by Putty, double click the file of Putty.exe, a window like this will appear on your screen. 
+ 
+<center>
+![](2.2.2_1.png)
+</center>
+</br>
+
+In this window, again, type the host name (e.g. `spiderscluster.stjude.org`) and click open. After clicking open, a login window will appear on your screen. 
+
+<center>
+![](2.2.2_2.png)
+</center>
+</br>
+ 
+
+In this login window, type your cluster user name and password to login the cluster After your login, you can get the JUMP options just by typing the magic word jump. Currently, we have the following options.
+
+* jump –d (database generation)
+* jump –s (search)
+* jump –comet (search through Comet)
+* jump –f (filtering)
+* jump –q (quantification)
+* jump –l (localization of modification sites)
+* jump –batch–id (filtering of IDs over multiple batches)
+* jump –batch–q (quantification of multiple batches)
+* jump –aq (absolute quantification of identified proteins)
+* jump –i (statistical inference of protein quantification data)
+* jump –params (parameter file generation)
+* jump –v (validation of known peptides/proteins)
+
+As you can see from the above list, you can use the jump command `jump –s` to identify peptides from your mass spectrometry dataset(s) (mzXML format) using database search, or `jump –f` to filter the peptides identification result to achieve a specific false discovery rate of identification, or `jump -q` to quantify protein abundance in TMT-labeled mass spectrometry data. At this point, you are ready to run the program.
+
+
+### 2.2.3 Load JUMP environment: only for HPC users
+ATTENTION: for HPC users, please use your Institutional Credentials (i.e., user name and password to log on your PC) to log on the HPC system. 
+To run the JUMP program on the HPC, you need to load the JUMP running environment with the following command module load jump. This command will load the default version of JUMP system, and now you are ready to run jump in a similar manner as that in the spiderscluster. You can test you load the environment successfully by simply type the command jump, from which you will see the JUMP usage instructions, as below:
+
+<center>
+![](2.2.3_1.png)
+</center>
+</br>
+  
+
+For advanced users, you may also check the current available versions of JUMP system by using the command module available jump, and manually load your favored version, e.g., `module load jump/1.13.003`.
+
+<center>
+![](2.2.3_2.png)
+</center>
+</br>
+ 
+
+### 2.2.4 Convert RAW files to mzXML files on Windows PC
+The JUMP database search program is designed to take either Thermo RAW files or mzXML files as input. However, for JUMP users on HPC, it may take significant wait time to convert RAW files to mzXML files. To save time, you can perform raw files to mzXML convert on Windows PC using our raw file converter, which you can download from spiderscluster: `/data1/pipeline/raw_file_converter` (Tips: you can use WinSCP to log on spiderscluster, then download the software to your local Windows PC). With this tool, user can convert multiple raw files at once, then upload to HPC (or any other clusters) for database search. For details, please follow the instructions in `README.txt` (that you can find after downloading our tool).
+
+
+## 2.3 Run JUMP software suite
+### 2.3.1 Run JUMP database creation
+To run the JUMP program, you need to set up the parameter in your parameter file first. For parameters setup, please go to the section of parameter setup. To create the database, in the PuTTy window type the Unix command cd and the name of directory to go to that directory containing your parameter files and your data set file, then type the database creation command `jump -d`, followed by the database creation parameter file name (for example,  `jump -d  jump_d.params`), then press the enter key. Then, the following window will appear on your screen.
+ 
+<center>
+![](2.3.1.png)
+</center>
+</br>
+
+### 2.3.2 Run JUMP search
+To perform the database search to identify peptides, first set up the parameter in your parameter file (please see the parameter setup section), then type the command `jump -s` followed by a space, the name of the parameter file, a space, and  the name of mzXML file (e.g. `jump -s jump_sj_HH_tmt10_human.params HH_tmt10_human.mzXML`).
+
+<center>
+![](2.3.2_1.png)
+</center>
+</br>
+ 
+
+Then, press the enter key and you will see something like this.
+
+<center>
+![](2.3.2_2.png)
+</center>
+</br>
+ 
+
+For the storage of results, you can either specify a directory where output files will be located or just press the enter key. If you choose to create a directory, the results of JUMP search will be stored in the directory. If you press the enter key without creating a specifically named directory, the results will be stored in the directory which has the same name as your input file (e.g. `/HH_tmt10_human/`) and a subdirectory which has the same name as the input file with a numerical extension added to the end of the directory name (starts with 1 and then increase incrementally depending on how many times you have run the search task for the input file. For example, `/HH_tmt10_human/HH_tmt10_human.1/`).
+If your input file is .raw format, the program will convert the .raw format to .mzXML format so that the JUMP program can do the search task. 
+
+<center>
+![](2.3.2_3.png)
+</center>
+</br>
+ 
+
+However, the use of .mzXML file(s) is strongly recommended. Users can convert .raw file(s) to .mzXML files in their desktop computer and then upload the converted files to a host. Please see “Convert RAW files to mzXML files on Windows PC” section.
+If everything is right, you will get a message indicating that the database search has finished. The results of search will be stored in the directory created above.
+ 
+<center>
+![](2.3.2_4.png)
+</center>
+</br>
+
+
+
+### 2.3.3 Run JUMP search by Comet
+To run the JUMP search by Comet, 1) load JUMP pipeline version 1.13.004 using the command `module load jump/1.13.004`, 2) set up the parameters in your parameter file (please see the parameter setup section), 3) type the search command `jump -s` followed by the name of the parameter file (e.g. `jump_sc_HH_tmt10_human.params`) and the name of the mzXML file(s) (e.g. `HH_tmt10_human.mzXML`).
+
+Here are the detailed instructions.
+In the working path, load JUMP pipeline version 1.13.004 and run `jump -params` to obtain necessary parameter files as follows.
+
+<center>
+![](2.3.3_1.png)
+</center>
+</br>
+ 
+
+The “ParameterFiles” folder will be generated in the working path. It contains all parameter files including those for Comet (highlighted) as shown below.
+
+<center>
+![](2.3.3_2.png)
+</center>
+</br>
+ 
+
+Copy the Comet search params to the working path.
+
+<center>
+![](2.3.3_3.png)
+</center>
+</br>
+ 
+
+Copy the date set file to the work path via WinSCP.
+
+<center>
+![](2.3.3_4.png)
+</center>
+</br>
+ 
+
+Edit params (i.e. `jump_sc_HH_tmt10_human.params`) in WinSCP (please see the parameter setup section).
+
+Start the JUMP search by Comet as follows.
+
+<center>
+![](2.3.3_5.png)
+</center>
+</br>
+
+
+The following window will appear on your screen (first run pre-processing via JUMP, and then run database search via Comet).
+
+<center>
+![](2.3.3_6.png)
+</center>
+</br>
+
+<center>
+![](2.3.3_7.png)
+</center>
+</br>
+
+
+In the working path, results will be stored in the directory which has the same name as your input file (e.g. `/HH_tmt10_human`), and a `*.1.pep.xml` file which has the same name as the input file with a numerical extension 1, for e.g. `HH_tmt10_human.1.pep.xml`. If you re-run the search task for the input file, a new folder called oldsearch is created and the previous search run `*1.pep.xml` is pushed to this new folder and new result is created in the results directory as shown in the screenshot below. If you are attempting a re-search, some warnings such as `rm: cannot remove …` might come which can be ignored. If the job is terminated, you can check the files as below: `error.err` and `log.out`.
+
+<center>
+![](2.3.3_8.png)
+</center>
+</br>
+ 
+
+After Comet search, copy and edit `jump_fc.params`, and run `jump -f` as below. Do the same way for `jump -q`.
+
+<center>
+![](2.3.3_9.png)
+</center>
+
+<center>
+![](2.3.3_10.png)
+</center>
+
+<center>
+![](2.3.3_11.png)
+</center>
+</br>
+ 
+
+### 2.3.4 Run JUMP filtering
+To perform the filtering function, first set up the parameter in your parameter file, then type the filtering command `jump -f`, followed by the filtering parameter file name, for example, `jump_fj_HH_tmt10_human.params`, then press the enter key.
+
+<center>
+![](2.3.4_1.png)
+</center>
+</br>
+ 
+
+After you press the enter key, you will see something like this appear on your screen.
+ 
+<center>
+![](2.3.4_2.png)
+</center>
+</br>
+
+All the results of your filtering will be stored in a directory starting from “sum_”, for example, `/sum_HH_tmt10_human` under your working directory.
+
+
+### 2.3.5 Run JUMP localization
+To run the JUMP localization, set up the parameter in your parameter file, then type the localization command `jump -l`, followed by the localization parameter file, for example, `jump -l jump_l.params`, then press the enter key.
+ 
+<center>
+![](2.3.5_1.png)
+</center>
+</br>
+
+After press the enter key, the following window will appear on your screen.
+
+<center>
+![](2.3.5_2.png)
+</center>
+</br>
+ 
+
+All the results of your quantification task will be stored in a directory starting from “loc_”, for example, `/loc_HH_tmt10_human/` under your working directory.
+
+
+### 2.3.6 Run JUMP quantification
+To run the JUMP quantification, first set up the parameter in your parameter file,  then type the quantification command `jump -q`, followed by the quantification parameter file name, for example, `jump -q jump_qj_HH_tmt10_human.params`, then press the enter key.
+
+<center>
+![](2.3.6_1.png)
+</center>
+</br>
+
+After press the enter key, the following window will appear on your screen.
+
+<center>
+![](2.3.6_2.png)
+</center>
+</br>
+
+All the results of your quantification task will be stored in a directory, for example, `/quan_HH_tmt10_human` under your working directory.
+
+
+### 2.3.7 Run JUMP Batch
+To run the JUMP batch, first set up the parameter in your parameter file via the command `jump -params` (please see the parameter setup section), then type the command `jump -batch-id/q` followed by a space, and the name of the parameter file (e.g. `jump -batch-id jump_batchID.params`, `jump -batch-q jump_batchQ.params`).
+Here are the detailed instructions.
+
+1.	Login HPC (PuTTY and WinSCP) and go to a working path (e.g. `/home/zyuan1/testBatch`), move to the working path, load a module for the pipeline and run `jump -params`, i.e.,
+    ```
+    $ module load jump/1.13.004
+    $ jump -params
+    ```
+
+2.	Copy the batch parametef files to the working directory.
+    ```
+    $ cp ParameterFiles/Batch/*.params ./
+    $ cp ParameterFiles/Batch/*.sh ./
+    ```
+
+3.	Edit batch parameter files (i.e. `jump_batchID.params`, `jump_batchQ.params`) in WinSCP (please see the parameter setup section)
+4.	Run batch-ID (by default, the results are in the folder “batch_id”)
+    ```
+    $ jump -batch-id jump_batchID.params
+    ```
+
+5.	Run batch-quan (by default, the results are in the folder “batch_quan”)
+    ```
+    $ jump -batch-q jump_batchQ.params
+    ```
+
+6.	Alternatively, step 3 and 4 can be run in one command
+    ```{size='large'}
+    $ bash steps_batch.sh
+    ```
+
+Once JUMP batch is finished, the result folders will be shown as follows,
+
+ 
+
+### 2.3.8 Run Shiny app for analyzing JUMP quantification result
+After running JUMP quantification, a user will have some publication tables containing quantity data at peptide and/or protein level (i.e. `id_uni_pep_quan.xlsx` and/or `id_uni_prot_quan.xlsx`). These files are essential for further analyses such as exploratory analysis including principal component analysis (PCA) and clustering, and/or differential expression analysis with visualization. Quantitative analyses can be easily performed using a web-based user interface available at http://spiderscluster.stjude.org:3838/jumpq/.
+
+To perform exploratory analysis, i.e. unsupervised analysis to get a rough idea about the dataset, 
+
+1.	Select exploratory data analysis tab on top.
+2.	Upload a file (either `id_uni_pep_quan.xlsx` or `id_uni_prot_quan.xlsx`).
+3.	Choose a proportion of highly variable peptides or proteins. For example, if a user puts 10, then top 10% of most highly variable peptides (or proteins) will be analyzed.
+4.	Select the measure of variation: coefficient of variation (CV) or median absolute deviation (MAD). Default is CV.
+5.	Then, press submit button.
+ 
+<center>
+![](2.3.8_1.png)
+</center>
+</br>
+
+After a while, exploratory data analysis results can be seen in three tabs; Principal component analysis (PCA), Heatmap of the subset of peptides/proteins and Data table as follows. In “Data table” tab, a table containing the quantity information of highly variable peptide/proteins is shown. A user can see the profile of an individual peptide/protein under the table and download the table by clicking download button.
+
+<center>
+![](2.3.8_2.png)
+</center>
+
+<center>
+![](2.3.8_3.png)
+</center>
+
+<center>
+![](2.3.8_4.png)
+</center>
+</br>
+ 
+ 
+To perform differential expression analysis,
+
+1.	Select differential expression tab on top.
+2.	Upload a file (either `id_uni_pep_quan.xlsx` or `id_uni_prot_quan.xlsx`).
+3.	Set the number of groups in your dataset. Default is 2. Right after choosing the number of groups, then the window will expand to show individual sample labels and checkbox. A user should check which samples belong to which groups for subsequent analyses.
+4.	Set some parameters to determine differentially expressed peptides/proteins. First, the measure of significance should be set to either p-value or FDR. And the significance level and log2-fold cutoff need to be specified. 
+5.	Then, press submit button.
+
+<center>
+![](2.3.8_5.png)
+</center>
+</br>
+ 
+
+After a while, the results are shown in three tabs; Volcano plot, Heatmap of differentially expressed peptides/proteins and Data table. Heatmap and data table are demonstrated like exploratory data analysis result. Volcano plot is only available when two group comparison is performed. 
+Functional enrichment tab provides a tool which can perform enrichment study of the differentially expressed proteins using MSigDB (collection of 8 annotated gene sets). Since the set of differentially expressed proteins are used, a user does not need to put the list of proteins. In order to use functional enrichment analysis, first the species should be defined and then optionally background proteins may need to be uploaded. Finally, it should be specified which gene sets will be analyzed, for example, cancer hallmark gene sets, GO term gene sets, known pathway gene sets, etc.
+
+<center>
+![](2.3.8_6.png)
+</center>
+
+<center>
+![](2.3.8_7.png)
+</center>
+</br>
+
+
+### 2.3.9 A tip of running JUMP software suite in HPC
+1.	When using HPC for JUMP software suite, your task may be stuck for a long time since HPC tries to secure enough memory to perform it. If the size of your dataset is not huge, the following trick may accelerate your task. For example, for JUMP filtering, `jump -f <parameter file> --queue=standard --mem=10000`.
+It means that your JUMP filtering task will reserve up to 10,000MB (= 10GB) of memory in compute nodes of HPC. In fact, JUMP filtering is set to reserve up to 200,000MB (= 200GB) of memory by default to secure enough memory, which sometimes causes a long wait. By lowering the memory size as above, you may be able to process your data faster. Note that the memory size should depend on your data size. In most cases, 2000~50000 (2~50GB) will be enough. Other components such as JUMP database search and JUMP quantification can be accelerated in the same manner.
+2.	If a terminal like PuTTY is accidentally interrupted (for example, lost VPN connection when remotely working, sudden power outage, etc.), running jobs would be terminated and incompletely finished. Such a situation can be prevented from using “nohup” command which runs jobs in the background. For example, 
+`nohup jump -s <parameter file> <mzXML file(s)> &> <log file> &`
+The above command runs JUMP search jobs in the background and send the output to the “log_file” in your current working directory.  You can then see the output with the following tail command, `tail -f <log file>`.
+Even in case of shutting down of the terminal, the jobs will just keep running. You can log back in and use the “tail” command to see your output.
+
+
+
+## 2.4 Parameter Setup
+A parameter file is required for each component of JUMP software suite. Sample parameter files can be obtained by simply running the command jump -params in your working directory. You can find a directory of `/ParameterFiles` in which sample parameter files are located. For the simple routine tasks, it is not necessary to change default parameters except path(s) of input file(s). Advanced users can change those parameters according to their needs. Whenever the parameters are re-defined/changed, please save the changes to the parameter file. Otherwise, Jump software suite will use default ones.
+JUMP software suite is running in Linux system. In general Linux system, ** please DO NOT USE space and any special characters other than underscore (i.e. “_”) in file names, directory names, paths in parameter files and sample labels in parameter files. ** Here are some examples.
+1.	/human TMT test: not good since there are spaces in the directory name
+2.	/TMT+test@human: not good since many special characters are used for the directory name
+3.	human_TMT_test.txt: good since underscore is allowed
+
+
+### 2.4.1 Setup parameters for JUMP database creation
+The parameters for database creation are used to create database files for JUMP or SEQUEST search and/or a corresponding protein inference table (PIT) for the protein grouping to be performed when running JUMP filtering. The type of a database (JUMP or SEQUEST) solely depends on the search_engine information specified in `jump.params`. All the modification information for the database also depends on the `jump.params` file (please see below for more details).
+
+|Parameter|Description|
+|---------|-----------|
+|input_database1 = /home/user/MOUSE.fasta|The full (absolute) path of the input .fasta file used for creating a database. At least one .fasta file should be specified.|
+|input_database2 = /home/user/HUMAN.fasta|Multiple .fasta files can be used to create a database. When using multiple .fasta files, please do NOT forget numbering for the input databases (i.e. input_database1 = ..., input_database2 = ..., etc.).|
+|output_prefix = mouse|The prefix for newly generated database and PIT files. The suffix will be automatically generated according to the conditions for the database. For example, if a user defines output_prefix = mouse with the condition of fully tryptic digestion up to 2 miscleavage with no static cystein modification, then the new database will have the name such as mouse_ft_mc2_c0.fasta.xxx. The extension of database is either .hdr for SEQUEST or .mdx for JUMP.|
+|include_contaminants = 1|If a user wants to include contaminant sequences to the database, this parameter needs to be set to 1. Otherwise, set to 0. If a user uses input_database which already include contaminant sequences, include_contaminants should be set to 0 to avoid the duplicatino of contaminant sequences in the database.|
+|input_contaminants = /data1/database/contaminats.fasta|The absolute path of contaminant sequences (should be .fasta format).|
+|decoy_generation = 1|If a user wants to include decoy sequences of proteins (and contaminants, if exist), this parameter needs to be set to 1. Otherwise, set to 0.|
+|decoy_generation_method = 1|If decoy_generation = 1, a user should specify the method of generating decoy sequences (1 = simply reversing target protein sequences, 2 = reversing protein sequences and then swapping every K and R with their preceding amino acid).|
+|jump.params = /home/user/jump_search.params|A user SHOULD specifiy a jump search parameter file (e.g. jump_search.params) so that the information of search engine, static/dynamic modifications and so on can be obtained and be directly used to generate a new database. Please specify the full (absolute) path of the jump search parameter file.|
+|bypass_db_generatio = 0|A user can create PIT file, but bypass the generation of database (time-consuming). If that is the case, please set the parameter to 1 (1 = bypass the database generation, 0 = no).|
+|list_protein_abundance = /home/user/human_abudance.txt|Optional parameter. This protein abundance information is used to generate PIT for grouping and sorting proteins. If this parameter is used, the full (absolute) path needs to be specified. The file for protein abundance information should be a tab-delimited text format with the following rules: Column1 = Uniprot accession of a protein (e.g. P12345), Column2 = abundance of the protein (numeric value), Column3, 4, 5, … = any information/description (will be ignored).</br></br>e.g., Multiple protein abundance information can be used as following.</br>list_protein_abundance1 = /home/user/mouse_abunance.txt</br>list_protein_abundance2 = /home/user/rat_abundance.txt|
+|list_oncogenes = /path/oncogenes_from_literatures.txt</br>list_TFs = /path/tfs_from_TRANSFAC.txt</br>list_kinases = /path/kinases_from_pkinfam.txt</br>list_GPCRs = /path/gpcrs.txt</br>list_epigenetic_factors = /path/epigenetic_regulators.txt</br>list_spliceosomal_proteins = /path/spliceosomal_proteins.txt|Optional parameters for protein annotation|
+
+
+
+### 2.4.2 Setup parameters for JUMP search
+For whole proteome analysis, please always use JUMP for the primary search engine and use SEQUEST for backup and troubleshooting. For testing purpose, select a good run among fractions and a good scan range (e.g. 5000~10000, a total of 5000 scans) and then run JUMP search.
+
+|Parameters|Description|
+|----------|-----------|
+|database_name = /home/user/database/HH_tmt10_human.fasta.mdx</br>pit_file = /home/user/database/HH_tmt10_human.pit|For the database search, full (absolute) paths of database file (.mdx or .hdr) and corresponding .pit file should be specified.|
+|peptide_tolerance = 15|Precursor mass tolerance (MH+). Default is 15 ppm|
+|peptide_tolerence_units = 2|Peptide tolerance unit: 1 = Da, and 2 = ppm.|
+|first_scan_extraction = 5000|It defines the first scan number for search. For the search of full scans, it should be 1 (i.e. the 1st scan).|
+|last_scan_extraction = 10000|It defines the last scan number for search. For the search of full scans, it should be a large number (e.g 10E6).|
+|isolation_window = 1.4|It is defined as +/- (isolation window)/2 based on MS2 isolation window (e.g. 1.4 m/z).|
+|isolation_window_offset = 0.25|It is defined as +/- isolation window offset based on MS2 isolation window (e.g. 0.25 m/z).|
+|isolation_window_variation = 0.2|It is defined as +/- isolation window variation based on MS2 isolation window (e.g. 0.2 m/z).|
+|interscanppm = 15|It defines the mass tolerance for interscan precursor identification.|
+|intrascanppm = 10|It defines the mass tolerance for intrascan isotopic decharging.|
+|max_num_ppi = 0|It defines max precursor ions selected for mixed MS2 search (please note that “ppi” means precursor peak intensity and “num” means the number of peak series, not the peak number). If set to 0, it is disabled.|
+|percentage_ppi = 50|It defines the minimal percentage of precursor peak intensity (ppi) when max_num_ppi = 0 and the intensity is the sum of the intensities of all isotopic peaks.|
+|ppi_charge_0 = 1|If set to 0, it will discard uncharged MS1 (charge = 0). If set to 1, it will perform manual assignment of the charge (+2 and +3).|
+|ppi_charge_1 = 1|If set to 0, it will discard MS1 with charge +1. If set to 1, it will allow MS1 to have original charge +1.|
+|mass_correction = 2|0 = no mass correction, 1 = MS1-based mass correction (using the peak of 445), 2 = MS2-based mass correction (using y1 ion of K and/or R, and TMT reporter ion) 3 = manual mass correction.|
+|prec_window = 3|0 = disabled. If set to 1-10 (Da), it defines a m/z windows for removing precursor ions.|
+|MS2_deisotope = 1|0 = disable, 1 = enable to do deisotope.|
+|ppm = 10|It defines the mass tolerance for MS2 decharging and deisotoping.|
+|charge12_ppm = 15|It defines the mass tolerance for merging different charged ions with the same mass.|
+|ms2_consolidation = 10|It defines a maximum number of peaks retained within each 100-Da window for processing MS2 spectra.|
+|TMT_data = 0|It specifies the definition of a dataset. 0 = non-TMT data, 1 = TMT data.|
+|tag_generation = 1|Whether or not generate tags for peptide identification. 0 = disable, 1 = enable to generate tags.|
+|tag_tolerance = 10|It defines the mass tolerance for measuring peak distance for generating tags.|
+|tag_tolerance_unit = 2|Tag tolerance unit: 1 = Da, 2 = ppm.|
+|tag_select_method = comb_p|It defines the method of ranking tags: comb_p, hyper_p or rank_p|
+|ion_series = 1 1 0 0 0 0 0 1 0|It defines the type of ions. For example, 1 1 0 0 0 0 0 1 0 means a, b, c, d, v, w, x, y and z ions, respectively.|
+|frag_mass_tolerance = 20|It defines the mass tolerance for matching MS2 fragment ions.|
+|frag_mass_tolerance_unit = 2|The unit of frag_mass_tolerance: 1 = Da, 2 = ppm.|
+|ion_losses_MS2 = 0 0 0 0|It defines the type of neutral losses: 0 = disable, 1 = enable for neutral loss of H2O, HPO3, H3PO4 and NH3, respectively.|
+|ion_losses_MS1 = 0|0 = disabled. If set to 1, it indicates the use of precursor ion phosphate neutral loss to estimate the number of S/T phosphorylation.|
+|ion_scoring = 1|If set to 1, it indicates the simultaneous scoring of product ions. If set to 2, it indicates the separate scoring of ion series and the determination of charge states.|
+|matching_method = hyper_p|It defines the method of PSM scoring (comb_p, hyper_p, rank_p).|
+|tag_search_method = 2|1 = exit when found; 2 = exhaustive search using tags defined by max_number_tag_for_search.|
+|max_number_tags_for_search = 50|It defines the maximum number of tags used for search unless the total number of tags is smaller than this defined value.|
+|number_of_selected_result = 5|It defines the maximum tentative number of PSMs in .spout file ranked by Jscore.|
+|number_of_detailed_result = 5|It defines the maximum tentative number of PSMs in .spout file ranked by pattern matching score.|
+|second_search = 1|0 = disable, 1 = enable. For PSMs with FDR > 0, perform the another round of search by relaxing monoisotopic mass by including M-2, M-1, M, M+1, M+2.|
+|dynamic_M = 15.99492|It defined dynamic modification to an amino acid. For other modifications, add each dynamic modification by one line starting with dynamic_ (M: 15.99492; C: 57.02146 carbamidomethylation or 71.0371 acrylamide; SILAC: K:4.02511, 6.02013, 8.01420; SILAC: R:6.02013, 10.00827). Note that JUMP requires a new database for database search with dynamic modifications. SEQUEST does not require a new database.|
+|dynamic_S = 79.96633</br>dynamic_T = 79.96633</br>dynamic_Y = 79.96633|For phosphoproteome analysis, the following dynamic modifications should be added to the parameter file.|
+|enzyme_info = Tryptic KR P|It is used to provide the information of the enzymes (Tryptic KR P, LysC K ; ArgC R ; GluC DE).|
+|digestion = full|It is used to specify if the digestion is full or partial.|
+|max_mis_cleavage = 2|It is used to define the maximum number of miscleavage sites allowed for each peptide.|
+|min_peptide_mass = 400.0000|It is used to define the minimum mass of peptide database.|
+|max_peptide_mass = 6000.0000|It is used to define the maximum mass of peptide database.|
+|max_modif_num = 3|It is used to define the maximum number of modifications allowed for each peptide.|
+|add_Nterm_peptide = 229.162932  (for TMT-based experiment. 0 for non-TMT)</br>add_Cterm_peptide = 0.0000</br>add_A_Alanine = 0.0000</br>add_B_avg_NandD = 0.0000</br>add_C_Cysteine = 0.0000</br>add_D_Aspartic_Acid = 0.0000</br>add_E_Glutamic_Acid = 0.0000</br>add_F_Phenylalanine = 0.0000</br>add_H_Histidine = 0.0000</br>add_I_Isoleucine = 0.0000</br>add_J_user_amino_acid = 0.0000</br>add_K_Lysine = 229.162932       (for TMT-based experiment. 0 for non-TMT)</br>add_L_Leucine = 0.0000</br>add_M_Methionine = 0.0000</br>add_N_Asparagine = 0.0000</br>add_O_Ornithine = 0.0000</br>add_P_Proline = 0.0000</br>add_Q_Glutamine = 0.0000</br>add_R_Arginine = 0.0000</br>add_S_Serine = 0.0000</br>add_T_Threonine = 0.0000</br>add_U_user_amino_acid = 0.0000  (SEQUEST search only)</br>add_V_Valine = 0.0000</br>add_W_Tryptophan = 0.0000</br>add_X_LorI = 0.0000             (SEQUEST search only)</br>add_Y_Tyrosine = 0.0000</br>add_Z_avg_QandE = 0.0000        (SEQUEST search only)|Parameters specifying static modifications of amino acids.|
+|simulation = 0|It is used for testing the target-decoy strategy (0 = disable, 1 = enable).|
+|sim_MS1 = 1000|It defines the ppm addition for MS1 decoys.|
+|sim_MS2 = 5|It defines Da window for randomized MS2 peaks.|
+|cluster = 1|It indicates the use of either master node only or entire cluster (0 = disable, 1 = enable).|
+|Job_Management_System = LSF|It defines the job management systems used in the cluster (SGE, LSF & PBS).|
+|temp_file_removal = 1|It specifies whether keeping the tempoarry files or removing them (0 = disable (i.e. keep temporary files), 1 = enable (remove temporary files)).|
+
+
+
+### 2.4.3 Setup parameters for JUMP search by Comet
+JUMP is the primary search engine. Comet can be used as the secondary search engine. Comet is compatible with JUMP pipeline. Comet’s search parameters are like those of JUMP. `jump_sc.params` (search_engine = COMET) is the same as `jump_sj.params` (search_engine = JUMP). The following is `comet.params`, which is converted from `jump_sc.params` and internally used by Comet.
+
+|Parameters|Description|
+|----------|-----------|
+|database_name = /home/database/human_ft_mc2_c0_TMT_K229.fasta|Specify the full (absolute) path of database file (.fasta)|
+|decoy_search = 0|How to include the decoy database: 0=no (default), 1=concatenated search, 2=separate search|
+|peff_format = 0|How to include the peff file: 0=no (normal fasta, default), 1=PEFF PSI-MOD, 2=PEFF Unimod|
+|peff_obo = |Specify the path to PSI Mod or Unimod OBO file (if not applicable, leave it blank)|
+|num_threads = 4|How many threads to use: 0=poll CPU to set num threads; else specify num threads directly (max 128)|
+|peptide_mass_tolerance = 20.00|Precursor mass tolerance|
+|peptide_mass_units = 2|Precursor mass units: 0=amu, 1=mmu, 2=ppm|
+|mass_type_parent = 1|Precursor mass type: 0=average masses, 1=monoisotopic masses|
+|mass_type_fragment = 1|Fragment mass type: 0=average masses, 1=monoisotopic masses|
+|precursor_tolerance_type = 1|Precursor tolerance type: 0=MH+ (default), 1=precursor m/z; only valid for amu/mmu tolerances|
+|isotope_error = 3|Isotope error: 0=off, 1=0/1 (C13 error), 2=0/1/2, 3=0/1/2/3, 4=-8/-4/0/4/8 (for +4/+8 labeling)|
+|search_enzyme_number = 1|Search enzyme: choose from list at end of this params file|
+|num_enzyme_termini = 2|Digestion type: 1 (semi-digested), 2 (fully digested, default), 8 C-term unspecific , 9 N-term unspecific|
+|allowed_missed_cleavage = 2|Allowed missed cleavage: maximum value is 5; for enzyme search|
+|Up to 9 variable modifications are supported|format:  <mass> <residues> <0=variable/else binary> <max_mods_per_peptide> <term_distance> <n/c-term> <required></br></br>e.g. 79.966331 STY 0 3 -1 0 0></br>variable_mod01 = 15.9949 M 0 3 -1 0 0</br>variable_mod02 = 0.0 X 0 3 -1 0 0</br>variable_mod03 = 0.0 X 0 3 -1 0 0</br>variable_mod04 = 0.0 X 0 3 -1 0 0</br>variable_mod05 = 0.0 X 0 3 -1 0 0</br>variable_mod06 = 0.0 X 0 3 -1 0 0</br>variable_mod07 = 0.0 X 0 3 -1 0 0</br>variable_mod08 = 0.0 X 0 3 -1 0 0</br>variable_mod09 = 0.0 X 0 3 -1 0 0|
+|max_variable_mods_in_peptide = 5|The maximum number of modifications allowed for each peptide|
+|require_variable_mod = 0|The number of modifications required for each peptide|
+|fragment_bin_tol = 1.0005|Binning to use on fragment ions|
+|fragment_bin_offset = 0.4|Offset position to start the binning (0.0 to 1.0)|
+|theoretical_fragment_ions = 1|0=use flanking peaks, 1=M peak only|
+|use_A_ions = 0</br>use_B_ions = 1</br>use_C_ions = 0</br>use_X_ions = 0</br>use_Y_ions = 1</br>use_Z_ions = 0</br>use_NL_ions = 0|Fragment ions type|
+|output_sqtstream = 0|0=no, 1=yes  write sqt to standard output|
+|output_sqtfile = 0|0=no, 1=yes  write sqt file|
+|output_txtfile = 0|0=no, 1=yes  write tab-delimited txt file|
+|output_pepxmlfile = 1|0=no, 1=yes  write pep.xml file|
+|output_percolatorfile = 0|0=no, 1=yes  write Percolator tab-delimited input file|
+|print_expect_score = 1|0=no, 1=yes to replace Sp with expect in out & sqt|
+|num_output_lines = 5|Number of peptide results to show|
+|show_fragment_ions = 0|0=no, 1=yes for out files only|
+|sample_enzyme_number = 1|Sample enzyme which is possibly different than the one applied to the search|
+|scan_range = 0 0|Start and end scan range to search; either entry can be set independently|
+|precursor_charge = 0 0|Precursor charge range to analyze; does not override any existing charge; 0 as 1st entry ignores parameter|
+|override_charge = 0|0=no, 1=override precursor charge states, 2=ignore precursor charges outside precursor_charge range, 3=see online|
+|ms_level = 2|MS level to analyze, valid are levels 2 (default) or 3|
+|activation_method = ALL|Activation method; used if activation method set; allowed ALL, CID, ECD, ETD, ETD+SA, PQD, HCD, IRMPD|
+|digest_mass_range = 600.0 5000.0|MH+ peptide mass range to analyze|
+|num_results = 100|Number of search hits to store internally|
+|skip_researching = 1|For '.out' file output only, 0=search everything again (default), 1=don't search if .out exists|
+|max_fragment_charge = 3|Set maximum fragment charge state to analyze (allowed max 5)|
+|max_precursor_charge = 6|Set maximum precursor charge state to analyze (allowed max 9)|
+|nucleotide_reading_frame = 0|0=proteinDB, 1-6, 7=forward three, 8=reverse three, 9=all six|
+|clip_nterm_methionine = 0|0=leave sequences as-is; 1=also consider sequence w/o N-term methionine|
+|spectrum_batch_size = 0|Max. # of spectra to search at a time; 0 to search the entire scan range in one loop|
+|decoy_prefix = DECOY_|Decoy entries are denoted by this string which is pre-pended to each protein accession|
+|equal_I_and_L = 1|0=treat I and L as different; 1=treat I and L as same|
+|output_suffix = .1|Add a suffix to output base names i.e. suffix "-C" generates base-C.pep.xml from base.mzXML input|
+|mass_offsets = |One or more mass offsets to search (values substracted from deconvoluted precursor mass)|
+|minimum_peaks = 10|Required minimum number of peaks in spectrum to search (default 10)|
+|minimum_intensity = 0|Minimum intensity value to read in|
+|remove_precursor_peak = 0|0=no, 1=yes, 2=all charge reduced precursor peaks (for ETD), 3=phosphate neutral loss peaks|
+|remove_precursor_tolerance = 1.5|+/- Da tolerance for precursor removal|
+|clear_mz_range = 0.0 0.0|For iTRAQ/TMT type data; will clear out all peaks in the specified m/z range|
+|add_Cterm_peptide = 0.0</br>add_Nterm_peptide = 229.162931</br>add_Cterm_protein = 0.0</br>add_Nterm_protein = 0.0</br>add_G_glycine = 0.0</br>add_A_alanine = 0.0</br>add_S_serine = 0.0</br>add_P_proline = 0.0</br>add_V_valine = 0.0</br>add_T_threonine = 0.0</br>add_C_cysteine = 57.021464</br>add_L_leucine = 0.0</br>add_I_isoleucine = 0.0</br>add_N_asparagine = 0.0</br>add_D_aspartic_acid = 0.0</br>add_Q_glutamine = 0.0</br>add_K_lysine = 229.162932</br>add_E_glutamic_acid = 0.0</br>add_M_methionine = 0.0</br>add_O_ornithine = 0.0</br>add_H_histidine = 0.0</br>add_F_phenylalanine = 0.0</br>add_U_selenocysteine = 0.0</br>add_R_arginine = 0.0</br>add_Y_tyrosine = 0.0</br>add_W_tryptophan = 0.0</br>add_B_user_amino_acid = 0.0</br>add_J_user_amino_acid = 0.0</br>add_X_user_amino_acid = 0.0</br>add_Z_user_amino_acid = 0.0|Fixed modifications|
+|COMET_ENZYME_INFO</br>0.  No_enzyme</br>1.  Trypsin</br>2.  Trypsin/P</br>3.  Lys_C</br>4.  Lys_N</br>5.  Arg_C</br>6.  Asp_N</br>7.  CNBr</br>8.  Glu_C</br>9.  PepsinA</br>10. Chymotrypsin|</br>0      -           -</br>1      KR          P</br>1      KR          -</br>1      K           P</br>0      K           -</br> 1      R           P</br>0      D           -</br>1      M           -</br>1      DE          P</br>1      FL          P</br>1      FWYL        P|
+
+
+
+### 2.4.4 Setup parameters for JUMP filtering
+
+|Parameters|Description|
+|----------|-----------|
+|[name of output directory] : [absolute path of JUMP search result]|To filter the JUMP search result (and perform protein grouping and so on), a user should specify the full paths of search result directory which may contain several output files such as .dta and/or .out/.spout files and .pit file which corresponds to the database used in JUMP search. For example,HH_human_jump:/home/user/test/HH_tmt10_human/HH_tmt10_human_jump.1|
+|unique_protein_or_peptide = protein|It determines the level of filtering, i.e. either protein or peptide.|
+|initial_outfile_fdr = 5|It defines the percentage (%) of the initial FDR for filtering scores (default = 5%).|
+|multistep_FDR_filtering = 1|Multistep FDR filtering (0 = disable, 1 = enable).|
+|FDR = 1.5|It defines the % of FDR for filtering peptides or one-hit-wonder proteins (fixed < 1% FDR for proteins matched by two or more precursors). Final FDR will be around 1%, when summarizing all groups of proteins/peptides.|
+|one_hit_wonders_removal = 0|It determines whether to keep or remove one hit wonders (-1 = removal all, 0 = no filter, 1 = partial+fully, 2 = fully).|
+|mods = 0|It specifies modified peptides (0 = no modification, K = Lys, STY = Phosphorylation).|
+|modpairs = 0|It specifies whether to keep pairs of modified and unmodified peptides or not (0 = only modified peptides, 1 = pairs).|
+|pit_file = 0|It specifies whether to use a custom .pit file or not (0 = use .pit file used in JUMP search, otherwise the absolute path of a custome file).|
+|min_peptide_length = 7|It defines the minimum peptide length (6 can be used for a small database.|
+|max_peptide_mis = 2|It defines the maximum number of miscleavages allowed for one peptide (default = 2).|
+|max_peptide_mod = 3|It defines the maximum number of modifications allowed for one peptide (M = 2, SILAC (KR) = 4, Ub = 3, Pho (STY) = 5).|
+|peptide_mod_removal = 0|It defines whether to remove peptides containing specific modification(s) (0 = do not remove any peptides, C = remove all C-modified peptides, STY = remove all STY-modifed peptides).|
+|peptide_aa_removal = 0|It defines whether to remove peptides containing specific amino acid(s) (0 = do not remove any peptides, M = remove all M-containing peptides).|
+|min_XCorr = 10|The minimum threshold of search scores. For XCorr (SEQUEST), default = 1. For Jscore (JUMP), default = 10.|
+|min_dCn = 0|The minimum threshold of delta scores: dCn (SEQUEST) or dJ (JUMP).|
+|mix_label = 0|It defines whether to remove mixed labeled peptides or not (0 = do not remove any peptides, KR = remove peptide labeled with SILAC, C = remove peptide labeled with ICAT, etc.).|
+|filter_contaminants = 0|It defines whether to remove listed contaminants or not (0 = do not remove contaminants, 1 = remove listed contaminants named with “CON_”).|
+|12combinations = 1 1 1 1 1 1 1 1 0 0 0 0|Trypticity and charge => FT1 FT2 FT3 FT4 PT1 PT2 PT3 PT4 NT1 NT2 NT3 NT4 (1 = yes, 0 = no).|
+|bypass_filtering = 0|It defines whether to bypass all mass accuracy and dCn/XCorr filtering or not (0 = do all mass accuracy and dCn/XCorr filtering, 1 = bypass all filtering).|
+|mass_accuracy = 1|It defines whether to perform mass accuracy-based filtering or not (0 = no mass accuracy-based filtering, 1 = do filtering).|
+|mass_consideration = 1|It specifies the mass consideration for accuracy filtering (1 = (MH), 2 = (MH, MH+1), 3 = (MH, MH+1, MH+2), 4 = (MH, MH+1, MH+2, MH+3), 5 = (MH, MH+1, MH+2, MH+3, MH+4), 6 = (MH-1, MH, MH+1, MH+2), 7 = (MH-2, MH-1, MH, MH+1, MH+2)).|
+|sd_or_static = sd</br>sd = 5</br>sd_or_static = static</br>|The parameter related with mass shift, “sd_or_static”, specifies wheter mass accuracy cutoff is based on experimental standard deviation (sd_or_static = sd) or static ppm value (sd_or_static = static).|
+|static_cutoff_without_mass_calib = 10|If there are not enough good scans, use this threshold value for ppm cut without mass calibration.|
+|FDR_filtering_method = group|It defines the filtering methods. Select one of the two filtering methods (LDA or group).|
+|min_outfile_num_for_XCorr_filter = 200|It defines the number of outfiles in each group for XCorr filtering; any number between 500 and 1000 is recommended.|
+|one_hit_wonders_min_XCorr_z1 = 100|It defines the minimum XCorr (or Jscore) threshold for peptides with charge state of 1.|
+|one_hit_wonders_min_XCorr_z2 = 25|It defines the minimum XCorr (or Jscore) threshold for peptides with charge state of 2.|
+|one_hit_wonders_min_XCorr_z3 = 35|It defines the minimum XCorr (or Jscore) threshold for peptides with charge state of 3 or above.|
+|one_hit_wonders_min_dCn = 0.1|It defines the minimum dCn (or dJ) threshold for one-hit-wonders.|
+|one_hit_wonders_mis = 1|It specifies the number of miscleavages allowed for one-hit-wonders.|
+|one_hit_wonders_mods = 1|It specifies the number of modifications allowed for one-hit-wonders (M = 1, Ub = 2, SILAC (KR) = 3, Pho (STY) = 4).|
+|output_pepXML = 0|It specifies whether to enable HTML-based access or not (0 = disable HTML generation, 1 = enable HTML generation). ATTENTION: for large dataset (e.g., >2 million outfiles), HUGE RAM (>100 Gb) is required for turning on this option.|
+
+
+
+### 2.4.5 Setup parameters for JUMP localization
+JUMP localization performs the localization of modification sites (e.g. phosphorylation sites) based on Lscore.
+
+|Parameters|Description|
+|----------|-----------|
+|IDmod = /home/user/sum_phospho/IDmod.txt|It specifies the path of JUMP filtering result of modified peptides. Note that it should designate IDmod.txt not ID.txt.|
+|Output = ID.lscore|It specifies the output file name which will contain Lscores of all possible modification sites for peptides. Default is ID.lscore.|
+|peptide_score_tolerance = 10|It defines the percentage tolerance of peptide Lscore (default = 10 (percent)). It means that the Lscore of the best modification site in a peptide should be at least 10 percent higher than the second-best site.|
+
+Other parameters need to be set up according to your JUMP search parameters used.
+
+
+
+### 2.4.6 Setup parameters for JUMP quantification
+JUMP quantification performs the quantification of proteins/peptides from TMT-labeled experiments.
+
+|Parameters|Description|
+|----------|-----------|
+|idtxt = /home/user/sum_HH_tmt10_human_jump/ID.txt|It specifies the path of JUMP filtering result to be quantified by JUMP quantification.|
+|save_dir = HH_tmt10_human_jump|The name of the directory where JUMP quantification results are stored (prefix “quan-” will be added).|
+|ppi_filter = 70|It specifies the threshold of precursor peak intensity percentage of PSMs (don’t be confused with search ppi).|
+|min_intensity_method = 1, 4|It defines the method of minimum intensity-based filtering of PSMs (0 = no use of the filter, 1 = minimum (intensity), 2 = maximum, 3 = mean, 4 = median. Multiple methods can be used).|
+|min_intensity_value = 1000, 5000|It defines the threshold value(s) of the above filter(s).|
+|min_intensity_method_1_2_psm = 1, 4|It defines the method of minimum intensity-based filtering of proteins identified from one or two PSMs (0 = no use of the filter, 1 = minimum (intensity), 2 = maximum, 3 = mean, 4 = median. Multiple methods can be used).|
+|min_intensity_value_1_2_psm = 2000, 10000|It defines the threshold value(s) of the above filter(s).|
+|impurity_correction = 1|It defines whether to correct the impurity of TMT reporters (0 = no, 1 = yes).|
+|impurity_matrix = /home/user/TMT10.ini|When impurity_correction is set to 1, a file containing TMT reporter impurity information should be specified by this parameter.|
+|loading_bias_correction = 1|It defines whether to correct the loading-biases over samples during quantification (0 = no, 1 = yes).|
+|loading_bias_correction_method = 1|It specifies the method of the loading-bias correction (1 = mean intensity-based, 2 = median intensity-based).|
+|SNratio_for_correctio = 10|It defines the minimum signal-to-noise (SN) ratio for the loading-bias correction.|
+|percentage_trimmed = 25|It defined the percentage of most variable intensities to be trimmed for the loading-bias correction.|
+|interference_removal = 0|It defines whether to remove the interference in TMT quantification (i.e. ratio suppression) or not. If set to 1, it will take a significantly long time.|
+|tmt_reporters_used = sig126; sig127N; ...|It specifies TMT reportes to be used in the quantification. For example, when all reporters of TMT-10plex are used, tmt_reporters_used = sig126; sig127N; sig127C; sig128N; sig128C; sig129N; sig129C; sig130N; sig130C; sig131. The reporter names should be separated by semicolon (;).|
+|tmt_peak_extraction_second_sd = 8|It is related with the tolerance for finding TMT reporter ion peaks.|
+|tmt_peak_extraction_method = 1|It defines the method of TMT reporter ion extraction method (1 = strongest peak, 2 = closest peak).|
+|sig126 = WT_rep1</br>sig127N = WT_rep2</br>sig127C = WT_rep3</br>sig128N = WT_rep4</br>sig128C = KO1_rep1</br>sig129N = KO1_rep2</br>sig129C = KO1_rep3</br>sig130N = KO2_rep1</br>sig130C = KO2_rep2</br>sig131 = KO2_rep3|18.	Sample labels need to be specified to the corresponding TMT reporters used in the quantification. Do NOT use any special character in sample labels other than underscore.|
+|comparison_analysis = 1|It defines whether any comparison analysis should be performed during the quantification (0 = no, 1 = yes).|
+|comparison_group_<comparison name> = ...|It describes how the comparison analysis should be performed. For defining comparison analyses, the prefix comparison_groups_ and sample labels defined above should be used. Multiple comparisons are allowed. In each comparison, groups are separated by colon (:) and sample labels are separated by comma (,).</br>For example, comparison_groups_WtvsKO = WT_rep1, WT_rep2 : KO1_rep1, KO1_rep2|
+
+
+
+### 2.4.7 Setup parameters for JUMP Batch
+JUMP Batch has two sets of parameter files. The first params file is `jump_batchID.params`.
+
+|Parameters|Description|
+|----------|-----------|
+|input_path_batch1 = /home/user/sum_batch1/IDwDecoy.txt</br>input_path_batch2 = /home/user/sum_batch2/IDwDecoy.txt|Absolute path of publication tables from JUMP -f results (IDwDecoy.txt)</br>More batches can be added here.|
+|min_Jscore = 10|Minimum Jscore cutoff to be considered (10 for JUMP; 1 for Comet)|
+|multiHit_max_dJn = 0.1|For considering non-top hits for a PSM: PSMs within such dJn range will be considered in a recursive way|
+|enable_group_specific_Jscore = 1|Enable group specific Jscore filtering. Each group defined by charge states and peptide length|
+|score_cutoff_quantile = 0|Jscore threshold for each group, defined as the lower quantile (default 5%) of Jscores in each group defined by charge states and peptide length|
+|mods = 0|Display modified peptides and their unmodified (0:Off, K:Lys, STY: Phosphorylation, ...); same as -f|
+|output_folder = batch_id|Output folder name (the default is batch_id). If it is changed here, remember to change it in ‘path_batch_id’ of ‘jump_batchQ.params’.|
+|jump_f_path = /hpcf/.../jump_f.pl|Abosolte path of -f; if not specified or 0, the command of 'jump -f' will be used|
+|pit_file = 0|In JUMP, pit_file = 0; in Comet, set pit_file according to search|
+|database = 0|Use the database file in search|
+|dispatch = localhost|Use the pre-applied RAM to run the program|
+</br>
+
+The second params file is `jump_batchQ.params`.
+
+|Parameters|Description|
+|----------|-----------|
+|input_mode = 1|Run -batch-quan at different levels: 1: proteins (for whole proteome); 2: pho site; 3: peptides (from either phosphor- or whole proteome)|
+|path_batch_id = /home/user/testBatch/batch_id|Output path of -batch-id results, the same folder name as ‘output_folder’ of ‘jump_batchID.params’|
+|input_n_batch1 = 10</br>input_n_batch2 = 10|Specify TMT-plex for each batch (that match to jump -batch-id results)|
+|output_folder = quan|Output path of -batch-quan results|
+|normalization_method = 1|0: None (i.e., just combine publication tables); 1: using internal standard; 2: using linear model fitting|
+|isoform_rescue = 1|0: turn off; 1: turn on function. Suppose for a gene, there are two isoforms (say a and b) that are both quantified in batch 1 as demonstrated by two unique peptides; but only one peptide (i.e., isoform) is quantified in batch 2. This function will copy the exact quantification of isoform a to replace the N/A for isoform b for batch 2.|
+|internal_standard_batch1 = sig126</br>internal_standard_batch2 = sig126|Internal standards for each batch|
+|jump_i_path = /hpcf/.../jump_i.pl|Abosolte path of -i; if not specified or 0, the command of 'jump -i' will be used|
+|ppi_filter = 50</br>impurity_correction = 1</br>loading_bias_correction = 1</br>interference_removal = 0|jump -q parameters (the values here will overwrite the default values copied from the ParameterFiles/ folder)|
+
+
+
+# 3. References {#ref}
+
+1.	Wang, X., et al., JUMP: a tag-based database search tool for peptide identification with high sensitivity and accuracy. Molecular & Cellular Proteomics, 2014. 13(12): p. 3663-3673.
+2.	Wang, X., et al., JUMPm: A Tool for Large-Scale Identification of Metabolites in Untargeted Metabolomics. Metabolites, 2020. 10(5): p. 190.
+3.	Li, Y., et al., JUMPg: an integrative proteogenomics pipeline identifying unannotated proteins in human brain and cancer cells. Journal of proteome research, 2016. 15(7): p. 2309-2320.
+4.	Tan, H., et al., Integrative proteomics and phosphoproteomics profiling reveals dynamic signaling networks and bioenergetics pathways underlying T cell activation. Immunity, 2017. 46(3): p. 488-503.
+5.	Eng, J.K., A.L. McCormack, and J.R. Yates, An approach to correlate tandem mass spectral data of peptides with amino acid sequences in a protein database. Journal of the american society for mass spectrometry, 1994. 5(11): p. 976-989.
+6.	Perkins, D.N., et al., Probability‐based protein identification by searching sequence databases using mass spectrometry data. ELECTROPHORESIS: An International Journal, 1999. 20(18): p. 3551-3567.
+7.	Tanner, S., et al., InsPecT: identification of posttranslationally modified peptides from tandem mass spectra. Analytical chemistry, 2005. 77(14): p. 4626-4639.
+8.	Ma, B., et al., PEAKS: powerful software for peptide de novo sequencing by tandem mass spectrometry. Rapid communications in mass spectrometry, 2003. 17(20): p. 2337-2342.
+9.	Peng, J., et al., Evaluation of multidimensional chromatography coupled with tandem mass spectrometry (LC/LC− MS/MS) for large-scale protein analysis: the yeast proteome. Journal of proteome research, 2003. 2(1): p. 43-50.
+10.	Xu, P., D.M. Duong, and J. Peng, Systematical optimization of reverse-phase chromatography for shotgun proteomics. Journal of proteome research, 2009. 8(8): p. 3944-3950.
+11.	Taus, T., et al., Universal and confident phosphorylation site localization using phosphoRS. Journal of proteome research, 2011. 10(12): p. 5354-5362.
+12.	Niu, M., et al., Extensive peptide fractionation and y 1 ion-based interference detection method for enabling accurate quantification by isobaric labeling and mass spectrometry. Analytical chemistry, 2017. 89(5): p. 2956-2963.
+13.	Eng, J.K., T.A. Jahan, and M.R. Hoopmann, Comet: an open‐source MS/MS sequence database search tool. Proteomics, 2013. 13(1): p. 22-24.
+
